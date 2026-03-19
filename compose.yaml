@@ -1,0 +1,168 @@
+# ═══════════════════════════════════════════════════════════════════
+# Russify Android Build - Docker Compose Configuration
+# ═══════════════════════════════════════════════════════════════════
+#
+# Usage:
+#   Development build:    docker compose up build-dev-debug
+#   Production build:     docker compose up build-prod-release
+#   Run tests:            docker compose up test-dev
+#   Clean build:          docker compose up clean
+#
+# ═══════════════════════════════════════════════════════════════════
+
+version: '3.8'
+
+# Shared volume definitions for caching
+volumes:
+  gradle-cache:
+    driver: local
+  android-sdk-cache:
+    driver: local
+
+# Shared base configuration
+x-android-build-base: &android-build-base
+  build:
+    context: .
+    dockerfile: Dockerfile
+    target: builder
+  working_dir: /workspace
+  volumes:
+    - .:/workspace
+    - gradle-cache:/root/.gradle
+    - android-sdk-cache:/opt/android-sdk
+  environment:
+    - GRADLE_OPTS=-Dorg.gradle.daemon=false -Dorg.gradle.parallel=true -Dorg.gradle.caching=true
+
+services:
+  # ═══════════════════════════════════════════════════════════════
+  # Development Builds
+  # ═══════════════════════════════════════════════════════════════
+
+  build-dev-debug:
+    <<: *android-build-base
+    container_name: russify-build-dev-debug
+    command: ./gradlew assembleDevDebug --stacktrace
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+      args:
+        BUILD_TYPE: debug
+        FLAVOR: dev
+
+  build-dev-release:
+    <<: *android-build-base
+    container_name: russify-build-dev-release
+    command: ./gradlew assembleDevRelease --stacktrace
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+      args:
+        BUILD_TYPE: release
+        FLAVOR: dev
+
+  # ═══════════════════════════════════════════════════════════════
+  # Production Builds
+  # ═══════════════════════════════════════════════════════════════
+
+  build-prod-debug:
+    <<: *android-build-base
+    container_name: russify-build-prod-debug
+    command: ./gradlew assembleProdDebug --stacktrace
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+      args:
+        BUILD_TYPE: debug
+        FLAVOR: prod
+
+  build-prod-release:
+    <<: *android-build-base
+    container_name: russify-build-prod-release
+    command: ./gradlew assembleProdRelease --stacktrace
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+      args:
+        BUILD_TYPE: release
+        FLAVOR: prod
+
+  # ═══════════════════════════════════════════════════════════════
+  # Testing
+  # ═══════════════════════════════════════════════════════════════
+
+  test-dev:
+    <<: *android-build-base
+    container_name: russify-test-dev
+    command: ./gradlew testDevDebugUnitTest --stacktrace
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: testing
+      args:
+        FLAVOR: dev
+
+  test-prod:
+    <<: *android-build-base
+    container_name: russify-test-prod
+    command: ./gradlew testProdDebugUnitTest --stacktrace
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: testing
+      args:
+        FLAVOR: prod
+
+  lint-dev:
+    <<: *android-build-base
+    container_name: russify-lint-dev
+    command: ./gradlew lintDevDebug --stacktrace
+
+  lint-prod:
+    <<: *android-build-base
+    container_name: russify-lint-prod
+    command: ./gradlew lintProdDebug --stacktrace
+
+  # ═══════════════════════════════════════════════════════════════
+  # Utility Services
+  # ═══════════════════════════════════════════════════════════════
+
+  clean:
+    <<: *android-build-base
+    container_name: russify-clean
+    command: ./gradlew clean --stacktrace
+
+  dependencies:
+    <<: *android-build-base
+    container_name: russify-dependencies
+    command: ./gradlew dependencies --stacktrace
+
+  # Interactive shell for debugging
+  shell:
+    <<: *android-build-base
+    container_name: russify-shell
+    command: /bin/bash
+    stdin_open: true
+    tty: true
+
+  # ═══════════════════════════════════════════════════════════════
+  # Development environment with live reload
+  # ═══════════════════════════════════════════════════════════════
+
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: russify-dev
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+      - gradle-cache:/root/.gradle
+      - android-sdk-cache:/opt/android-sdk
+    command: /bin/bash
+    stdin_open: true
+    tty: true

@@ -8,9 +8,13 @@ import io.ktor.client.request.header
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.json.Json
 
+import com.example.Russify.BuildConfig
+
 object ApiClient {
-    // ЗАМЕНИ НА АДРЕС ТВОЕГО СЕРВЕРА! Если локально на эмуляторе, то 10.0.2.2:порт
-    const val BASE_URL = "http://10.0.2.2:8080"
+    // URL автоматически берется из BuildConfig в зависимости от flavor (dev/prod)
+    // dev: http://192.168.0.49:8080 (локальная сеть Wi-Fi)
+    // prod: https://api.russify.com (production)
+    val BASE_URL = BuildConfig.BASE_URL
 
     var authToken: String? = null // Сюда сохраним токен после логина
 

@@ -1,0 +1,24 @@
+# ═══════════════════════════════════════════════════════════════
+# Signing Configuration Example
+# ═══════════════════════════════════════════════════════════════
+#
+# ВАЖНО: НЕ КОММИТЬТЕ ЭТОТ ФАЙЛ С РЕАЛЬНЫМИ ДАННЫМИ!
+# Скопируйте в signing.properties и заполните своими данными
+#
+# Для генерации keystore:
+# keytool -genkey -v -keystore release.keystore -alias russify \
+#         -keyalg RSA -keysize 2048 -validity 10000
+#
+# ═══════════════════════════════════════════════════════════════
+
+# Release keystore
+RELEASE_STORE_FILE=release.keystore
+RELEASE_STORE_PASSWORD=your_store_password_here
+RELEASE_KEY_ALIAS=russify
+RELEASE_KEY_PASSWORD=your_key_password_here
+
+# Debug keystore (опционально, если хотите свой debug keystore)
+# DEBUG_STORE_FILE=debug.keystore
+# DEBUG_STORE_PASSWORD=android
+# DEBUG_KEY_ALIAS=androiddebugkey
+# DEBUG_KEY_PASSWORD=android
