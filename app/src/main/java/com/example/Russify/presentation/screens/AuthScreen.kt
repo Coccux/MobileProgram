@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.Russify.presentation.state.AppLanguage
@@ -48,9 +49,12 @@ fun AuthScreen(
             } else {
                 if (language == AppLanguage.RU) "РЕГИСТРАЦИЯ" else "REGISTRATION"
             },
-            fontSize = 42.sp,
+            fontSize = 32.sp,
             fontWeight = FontWeight.Black,
-            color = Color.White
+            color = Color.White,
+            maxLines = 1,
+            softWrap = false,
+            textAlign = TextAlign.Center
         )
 
         Spacer(modifier = Modifier.height(40.dp))
@@ -118,7 +122,8 @@ fun AuthScreen(
             },
             color = Color.White.copy(alpha = 0.7f),
             modifier = Modifier.clickable { isLoginMode = !isLoginMode },
-            fontSize = 14.sp
+            fontSize = 14.sp,
+            textAlign = TextAlign.Center
         )
     }
 }
