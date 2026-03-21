@@ -24,6 +24,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.example.Russify.data.MusicRepository
+import com.example.Russify.data.local.TokenManager
+import com.example.Russify.data.repository.AuthRepository
 import com.example.Russify.model.Playlist
 import com.example.Russify.presentation.components.AddToPlaylistDialog
 import com.example.Russify.presentation.components.CreatePlaylistDialog
@@ -46,7 +48,7 @@ class MainActivity : ComponentActivity() {
             // СОСТОЯНИЯ
             var showSplash by remember { mutableStateOf(true) }
             var currentScreen by remember { mutableIntStateOf(0) }
-            var isAuthenticated by remember { mutableStateOf(false) }
+            var isAuthenticated by remember { mutableStateOf(tokenManager.isLoggedIn()) }
 
             // Загрузка данных
             LaunchedEffect(Unit) {
@@ -63,7 +65,10 @@ class MainActivity : ComponentActivity() {
                 } else if (!isAuthenticated) {
                     // ЭКРАН 2: Авторизация
                     AuthScreen(
-                        onAuthSuccess = { isAuthenticated = true },
+                        onAuthSuccess = {
+                            currentScreen = 0
+                            isAuthenticated = true
+                        },
                         playerState = playerState
                     )
                 } else {

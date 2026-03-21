@@ -1,0 +1,67 @@
+# ═══════════════════════════════════════════════════════════════
+# Docker ignore file for Android build
+# Excludes unnecessary files from Docker context
+# ═══════════════════════════════════════════════════════════════
+
+# Build outputs
+**/build/
+**/outputs/
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# Gradle
+.gradle/
+local.properties
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# CI/CD
+.github/
+
+# Documentation (keep BUILD.md in context)
+# *.md
+
+# Android
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Signing files (NEVER include in Docker!)
+*.jks
+*.keystore
+keystore.properties
+
+# Logs
+*.log
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Node modules (if any)
+node_modules/
+
+# Test reports
+**/reports/
+**/test-results/
+
+# Local configuration
+local.properties

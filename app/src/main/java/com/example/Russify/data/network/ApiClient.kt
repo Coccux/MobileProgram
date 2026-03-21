@@ -2,15 +2,20 @@ package com.example.Russify.data.network
 
 import io.ktor.client.*
 import io.ktor.client.engine.android.*
+import io.ktor.client.plugins.auth.*
+import io.ktor.client.plugins.auth.providers.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.plugins.defaultRequest
-import io.ktor.client.request.header
+import io.ktor.client.plugins.logging.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.json.Json
 
+import com.example.Russify.BuildConfig
+
 object ApiClient {
-    // ЗАМЕНИ НА АДРЕС ТВОЕГО СЕРВЕРА! Если локально на эмуляторе, то 10.0.2.2:порт
-    const val BASE_URL = "http://10.0.2.2:8080"
+    // Backend base URL автоматически берется из BuildConfig в зависимости от flavor.
+    val BASE_URL = BuildConfig.BASE_URL + "/api"
+    val STORAGE_BASE_URL = BuildConfig.STORAGE_BASE_URL.trimEnd('/')
 
     var authToken: String? = null // Сюда сохраним токен после логина
 
@@ -21,12 +26,32 @@ object ApiClient {
                 prettyPrint = true
             })
         }
+
+        // Логирование запросов (полезно для отладки)
+        install(Logging) {
+            level = LogLevel.BODY
+        }
+
+        // Auth plugin для автоматической подстановки Bearer токена
+        install(Auth) {
+            bearer {
+                loadTokens {
+                    // Загружаем токен для каждого запроса
+                    authToken?.let { token ->
+                        BearerTokens(accessToken = token, refreshToken = "")
+                    }
+                }
+
+                // Обновление токена при ошибке 401 (пока не реализовано)
+                refreshTokens {
+                    // TODO: Реализовать refresh token logic
+                    null
+                }
+            }
+        }
+
         defaultRequest {
             url(BASE_URL)
-
-            authToken?.let { token ->
-                header("Authorization", "Bearer $token")
-            }
         }
     }
 }

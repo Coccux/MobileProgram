@@ -155,7 +155,7 @@ fun AllPlaylistsOverlay(playerState: MusicPlayerState, onDismiss: () -> Unit) {
                         Spacer(modifier = Modifier.height(16.dp))
                     }
                     itemsIndexed(playerState.playlists) { _, playlist ->
-                        PlaylistRowItem(playlist) { playerState.openedPlaylist = playlist }
+                        PlaylistRowItem(playlist) { playerState.openPlaylist(playlist) }
                     }
                     item { Spacer(modifier = Modifier.height(80.dp)) }
                 }

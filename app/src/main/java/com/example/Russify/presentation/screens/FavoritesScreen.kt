@@ -53,14 +53,14 @@ fun FavoritesScreen(
     var isShowingAlbums by remember { mutableStateOf(false) }
     var showPlaylistsOverlay by remember { mutableStateOf(false) }
 
-    if (showPlaylistsOverlay) {
+    if (playerState.openedPlaylist != null) {
+        BackHandler { playerState.openedPlaylist = null }
+    } else if (playerState.openedAlbum != null) {
+        BackHandler { playerState.openedAlbum = null }
+    } else if (showPlaylistsOverlay) {
         BackHandler { showPlaylistsOverlay = false }
     } else if (isShowingAlbums) {
         BackHandler { isShowingAlbums = false }
-    }
-
-    val initialFavoriteTrackIds = remember(playerState.allTracks.size) {
-        playerState.allTracks.filter { it.isFavorite }.map { it.id }.toSet()
     }
 
     val allTracks = playerState.allTracks
@@ -70,14 +70,11 @@ fun FavoritesScreen(
     val filteredPlaylists = userPlaylists.filter { it.title.contains(searchQuery, ignoreCase = true) }
     val filteredAlbums = userAlbums.filter { it.title.contains(searchQuery, ignoreCase = true) }
     val filteredTracks = allTracks.filter {
-        initialFavoriteTrackIds.contains(it.id) &&
-                (it.title.contains(searchQuery, ignoreCase = true) || it.artist.contains(searchQuery, ignoreCase = true))
+        it.isFavorite &&
+            (it.title.contains(searchQuery, ignoreCase = true) || it.artist.contains(searchQuery, ignoreCase = true))
     }
 
-    val displayTracks = remember(filteredTracks, allTracks) {
-        val allTracksMap = allTracks.associateBy { it.id }
-        filteredTracks.map { track -> allTracksMap[track.id] ?: track }
-    }
+    val displayTracks = remember(filteredTracks) { filteredTracks }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -128,7 +125,11 @@ fun FavoritesScreen(
                         } else {
                             items(items = displayTracks, key = { it.id }) { actualTrack ->
                                 TrackRowItem(
-                                    track = actualTrack, onClick = { playerState.playTrack(actualTrack, PlayingContext.AllTracks); playerState.isPlayerExpanded = true },
+                                    track = actualTrack,
+                                    onClick = {
+                                        playerState.playTrack(actualTrack, PlayingContext.AllTracks, displayTracks)
+                                        playerState.isPlayerExpanded = true
+                                    },
                                     onToggleFavorite = { playerState.toggleFavorite(actualTrack) }, onAddToPlaylist = { playerState.openAddToPlaylistDialog(actualTrack) },
                                     onAddToQueue = { playerState.addToQueue(actualTrack) }, onPlayNext = { playerState.playNext(actualTrack) }, language = language, playerState = playerState
                                 )
@@ -148,6 +149,24 @@ fun FavoritesScreen(
 
         AnimatedVisibility(visible = showPlaylistsOverlay, enter = slideInVertically(initialOffsetY = { it }), exit = slideOutVertically(targetOffsetY = { it })) {
             PlaylistsOverlayScreen(playerState = playerState, playlists = filteredPlaylists, onDismiss = { showPlaylistsOverlay = false }, themeDarkBg = themeDarkBg, themePlaylistBg = themePlaylistBg, themeTextWhite = themeTextWhite, themeActiveIcon = themeActiveIcon, language = language)
+        }
+
+        playerState.openedPlaylist?.let { playlist ->
+            PlaylistDetailPopup(
+                title = playlist.title,
+                author = playlist.authorName,
+                tracks = playlist.tracks,
+                playerState = playerState,
+                onClose = { playerState.openedPlaylist = null }
+            )
+        }
+
+        playerState.openedAlbum?.let { album ->
+            AlbumDetailOverlay(
+                album = album,
+                onDismiss = { playerState.openedAlbum = null },
+                playerState = playerState
+            )
         }
     }
 }
@@ -174,7 +193,7 @@ fun PlaylistsOverlayScreen(
                 if (playlists.isEmpty()) {
                     item { Text(if (language == AppLanguage.RU) "У вас пока нет плейлистов" else "No playlists yet", color = themeTextWhite.copy(alpha = 0.6f), fontSize = 14.sp, modifier = Modifier.padding(top = 16.dp)) }
                 } else {
-                    items(playlists) { playlist -> PlaylistItem(playlist = playlist, onClick = { playerState.openedPlaylist = playlist }, themeTextWhite = themeTextWhite, themeActiveIcon = themeActiveIcon, language = language) }
+                    items(playlists) { playlist -> PlaylistItem(playlist = playlist, onClick = { playerState.openPlaylist(playlist) }, themeTextWhite = themeTextWhite, themeActiveIcon = themeActiveIcon, language = language) }
                 }
                 item { Spacer(modifier = Modifier.height(100.dp)) }
             }
