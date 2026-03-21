@@ -199,9 +199,16 @@ class MusicPlayerState(private val context: Context) {
     }
 
     fun createNewPlaylist(name: String) {
-        val newPlaylist = MusicRepository.createPlaylist(name, "User")
-        playlists = playlists + newPlaylist
-        showCreatePlaylistDialog = false
+        scope.launch {
+            val createdPlaylist = MusicRepository.createPlaylistAsync(name, "User")
+            if (createdPlaylist != null) {
+                playlists = MusicRepository.getPlaylists().toList()
+                playerErrorMessage = null
+                showCreatePlaylistDialog = false
+            } else {
+                playerErrorMessage = "Failed to create playlist"
+            }
+        }
     }
 
     fun openAddToPlaylistDialog(track: Track) {
@@ -210,12 +217,48 @@ class MusicPlayerState(private val context: Context) {
     }
 
     fun addTrackToPlaylist(playlist: Playlist) {
-        trackToAdd?.let { track ->
-            MusicRepository.addTrackToPlaylist(playlist.id, track)
-            playlists = MusicRepository.getPlaylists().toList()
+        val track = trackToAdd ?: return
+
+        scope.launch {
+            val wasAdded = MusicRepository.addTrackToPlaylistAsync(playlist.id, track)
+            if (wasAdded) {
+                val refreshedPlaylists = MusicRepository.loadPlaylistsFromServer()
+                val refreshedTracks = MusicRepository.loadPlaylistTracks(playlist.id)
+                val updatedPlaylist = refreshedPlaylists
+                    .find { it.id == playlist.id }
+                    ?.copy(tracks = refreshedTracks.toMutableList())
+                    ?: playlist.copy(tracks = refreshedTracks.toMutableList())
+
+                playlists = refreshedPlaylists.map {
+                    if (it.id == updatedPlaylist.id) updatedPlaylist else it
+                }
+
+                if (openedPlaylist?.id == updatedPlaylist.id) {
+                    openedPlaylist = updatedPlaylist
+                }
+
+                playerErrorMessage = null
+            } else {
+                playerErrorMessage = "Failed to add track to playlist"
+            }
+
+            showAddToPlaylistDialog = false
+            trackToAdd = null
         }
-        showAddToPlaylistDialog = false
-        trackToAdd = null
+    }
+
+    fun openPlaylist(playlist: Playlist) {
+        openedPlaylist = playlist
+
+        scope.launch {
+            val playlistTracks = MusicRepository.loadPlaylistTracks(playlist.id)
+            val updatedPlaylist = playlist.copy(tracks = playlistTracks.toMutableList())
+
+            openedPlaylist = updatedPlaylist
+            playlists = playlists.map {
+                if (it.id == updatedPlaylist.id) updatedPlaylist else it
+            }
+        }
     }
 
     fun closeMiniPlayer() {

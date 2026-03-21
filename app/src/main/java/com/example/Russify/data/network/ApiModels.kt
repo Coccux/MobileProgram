@@ -62,7 +62,7 @@ data class TrackDto(
 data class PlaylistDto(
     val id: Long,
     val name: String,
-    @SerialName("user_id") val userId: Long,
+    @SerialName("user_id") val userId: Long? = null,
     @SerialName("is_system") val isSystem: Boolean,
     @SerialName("cover_hash") val coverHash: String? = null,
     @SerialName("cover_url") val coverUrl: String? = null
@@ -71,7 +71,7 @@ data class PlaylistDto(
 @Serializable
 data class PlaylistResponse(
     val id: Long,
-    @SerialName("user_id") val userId: Long,
+    @SerialName("user_id") val userId: Long? = null,
     val name: String,
     @SerialName("is_system") val isSystem: Boolean,
     @SerialName("cover_hash") val coverHash: String? = null,
@@ -83,7 +83,7 @@ data class PlaylistResponse(
 data class PlaylistWithTracks(
     val id: Long,
     val name: String,
-    @SerialName("user_id") val userId: Long,
+    @SerialName("user_id") val userId: Long? = null,
     @SerialName("is_system") val isSystem: Boolean,
     @SerialName("cover_hash") val coverHash: String? = null,
     @SerialName("cover_url") val coverUrl: String? = null,

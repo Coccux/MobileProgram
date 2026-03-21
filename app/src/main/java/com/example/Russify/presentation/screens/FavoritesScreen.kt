@@ -53,7 +53,11 @@ fun FavoritesScreen(
     var isShowingAlbums by remember { mutableStateOf(false) }
     var showPlaylistsOverlay by remember { mutableStateOf(false) }
 
-    if (showPlaylistsOverlay) {
+    if (playerState.openedPlaylist != null) {
+        BackHandler { playerState.openedPlaylist = null }
+    } else if (playerState.openedAlbum != null) {
+        BackHandler { playerState.openedAlbum = null }
+    } else if (showPlaylistsOverlay) {
         BackHandler { showPlaylistsOverlay = false }
     } else if (isShowingAlbums) {
         BackHandler { isShowingAlbums = false }
@@ -146,6 +150,24 @@ fun FavoritesScreen(
         AnimatedVisibility(visible = showPlaylistsOverlay, enter = slideInVertically(initialOffsetY = { it }), exit = slideOutVertically(targetOffsetY = { it })) {
             PlaylistsOverlayScreen(playerState = playerState, playlists = filteredPlaylists, onDismiss = { showPlaylistsOverlay = false }, themeDarkBg = themeDarkBg, themePlaylistBg = themePlaylistBg, themeTextWhite = themeTextWhite, themeActiveIcon = themeActiveIcon, language = language)
         }
+
+        playerState.openedPlaylist?.let { playlist ->
+            PlaylistDetailPopup(
+                title = playlist.title,
+                author = playlist.authorName,
+                tracks = playlist.tracks,
+                playerState = playerState,
+                onClose = { playerState.openedPlaylist = null }
+            )
+        }
+
+        playerState.openedAlbum?.let { album ->
+            AlbumDetailOverlay(
+                album = album,
+                onDismiss = { playerState.openedAlbum = null },
+                playerState = playerState
+            )
+        }
     }
 }
 
@@ -171,7 +193,7 @@ fun PlaylistsOverlayScreen(
                 if (playlists.isEmpty()) {
                     item { Text(if (language == AppLanguage.RU) "У вас пока нет плейлистов" else "No playlists yet", color = themeTextWhite.copy(alpha = 0.6f), fontSize = 14.sp, modifier = Modifier.padding(top = 16.dp)) }
                 } else {
-                    items(playlists) { playlist -> PlaylistItem(playlist = playlist, onClick = { playerState.openedPlaylist = playlist }, themeTextWhite = themeTextWhite, themeActiveIcon = themeActiveIcon, language = language) }
+                    items(playlists) { playlist -> PlaylistItem(playlist = playlist, onClick = { playerState.openPlaylist(playlist) }, themeTextWhite = themeTextWhite, themeActiveIcon = themeActiveIcon, language = language) }
                 }
                 item { Spacer(modifier = Modifier.height(100.dp)) }
             }

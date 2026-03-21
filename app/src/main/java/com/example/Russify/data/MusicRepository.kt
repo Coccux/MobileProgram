@@ -2,7 +2,9 @@ package com.example.Russify.data
 
 import android.util.Log
 import com.example.Russify.data.network.ApiClient
+import com.example.Russify.data.network.PlaylistTrackDto
 import com.example.Russify.data.network.TrackDto
+import com.example.Russify.data.network.TrackFlatDto
 import com.example.Russify.data.repository.AuthorsRepository
 import com.example.Russify.data.repository.FavoritesRepository
 import com.example.Russify.data.repository.PlaylistsRepository
@@ -29,13 +31,56 @@ object MusicRepository {
 
     private fun resolveAudioUrl(dto: TrackDto): String {
         return dto.audioUrl
-            ?: dto.audioHash?.let { "${ApiClient.BASE_URL}/media/music/$it" }
+            ?: dto.audioHash?.let { "${ApiClient.STORAGE_BASE_URL}/music/$it" }
             ?: ""
     }
 
     private fun resolveCoverUrl(dto: TrackDto): String? {
         return dto.coverUrl
-            ?: dto.coverHash?.let { "${ApiClient.BASE_URL}/media/images/$it" }
+            ?: dto.coverHash?.let { "${ApiClient.STORAGE_BASE_URL}/images/$it" }
+    }
+
+    private fun resolveAudioUrl(audioUrl: String?, audioHash: String?): String {
+        return audioUrl
+            ?: audioHash?.let { "${ApiClient.STORAGE_BASE_URL}/music/$it" }
+            ?: ""
+    }
+
+    private fun resolveCoverUrl(coverUrl: String?, coverHash: String?): String? {
+        return coverUrl
+            ?: coverHash?.let { "${ApiClient.STORAGE_BASE_URL}/images/$it" }
+    }
+
+    private fun mapTrackFlatDto(
+        dto: TrackFlatDto,
+        index: Int,
+        favouriteTracks: Set<Long>
+    ): Track {
+        return Track(
+            id = dto.id,
+            title = dto.name,
+            artist = "Unknown Artist",
+            durationSeconds = 180,
+            audioUrl = resolveAudioUrl(dto.audioUrl, dto.audioHash),
+            coverUrl = resolveCoverUrl(dto.coverUrl, dto.coverHash),
+            genreId = dto.genreId ?: 0,
+            coverColor = coverColors[index % coverColors.size],
+            isFavorite = dto.id in favouriteTracks
+        )
+    }
+
+    private fun mapPlaylistTrackDto(dto: PlaylistTrackDto, fallbackTrack: Track?): Track {
+        return Track(
+            id = dto.id,
+            title = dto.name,
+            artist = fallbackTrack?.artist ?: "Unknown Artist",
+            durationSeconds = fallbackTrack?.durationSeconds ?: 180,
+            audioUrl = resolveAudioUrl(dto.audioUrl, dto.audioHash),
+            coverUrl = resolveCoverUrl(dto.coverUrl, dto.coverHash),
+            genreId = dto.genreId ?: fallbackTrack?.genreId ?: 0,
+            coverColor = fallbackTrack?.coverColor ?: coverColors[(dto.id % coverColors.size).toInt()],
+            isFavorite = fallbackTrack?.isFavorite ?: false
+        )
     }
 
     /**
@@ -46,10 +91,13 @@ object MusicRepository {
      */
     suspend fun loadTracksFromServer(): List<Track> {
         return try {
-            val response = client.get("tracks")
+            val response = client.post("tracks/search") {
+                contentType(ContentType.Application.Json)
+                setBody(emptyMap<String, String>())
+            }
 
             if (response.status == HttpStatusCode.OK) {
-                val dtoList: List<TrackDto> = response.body()
+                val dtoList: List<TrackFlatDto> = response.body()
 
                 val favouriteTracks = favoritesRepository.getFavouriteTracks()
                     .getOrNull()
@@ -57,33 +105,8 @@ object MusicRepository {
                     ?.toSet()
                     ?: emptySet()
 
-                val allAuthorIds = dtoList.flatMap { it.authorIds }.toSet()
-                val authorsMap = if (allAuthorIds.isNotEmpty()) {
-                    authorsRepository.getAuthorsByIds(allAuthorIds)
-                } else {
-                    emptyMap()
-                }
-
                 dtoList.mapIndexed { index, dto ->
-                    val artistName = if (dto.authorIds.isNotEmpty()) {
-                        dto.authorIds.mapNotNull { authorId ->
-                            authorsMap[authorId]?.name
-                        }.joinToString(", ").ifEmpty { "Unknown Artist" }
-                    } else {
-                        "Unknown Artist"
-                    }
-
-                    Track(
-                        id = dto.id,
-                        title = dto.name,
-                        artist = artistName,
-                        durationSeconds = 180,
-                        audioUrl = resolveAudioUrl(dto),
-                        coverUrl = resolveCoverUrl(dto),
-                        genreId = dto.genreId ?: 0,
-                        coverColor = coverColors[index % coverColors.size],
-                        isFavorite = dto.id in favouriteTracks
-                    )
+                    mapTrackFlatDto(dto, index, favouriteTracks)
                 }
             } else {
                 Log.e(TAG, "Failed to load tracks: ${response.status}")
@@ -113,9 +136,9 @@ object MusicRepository {
                 Playlist(
                     id = dto.id,
                     title = dto.name,
-                    authorName = "User ${dto.userId}", // TODO: загрузить username через UserRepository
+                    authorName = dto.userId?.let { "User $it" } ?: "Playlist",
                     isSystem = dto.isSystem,
-                    tracks = mutableListOf() // Треки загружаются отдельно при необходимости
+                    tracks = _playlists.find { it.id == dto.id }?.tracks ?: mutableListOf()
                 )
             }.also {
                 _playlists.clear()
@@ -158,6 +181,40 @@ object MusicRepository {
      * Получить альбомы (возвращает кэш)
      */
     fun getAlbums(): List<Album> = _albums
+
+    suspend fun loadPlaylistTracks(playlistId: Long): List<Track> {
+        return try {
+            val playlistWithTracks = playlistsRepository.getPlaylistWithTracks(playlistId).getOrNull()
+                ?: return emptyList()
+
+            val favouriteTracks = favoritesRepository.getFavouriteTracks()
+                .getOrNull()
+                ?.map { it.id }
+                ?.toSet()
+                ?: emptySet()
+
+            val resolvedTracks = playlistWithTracks.tracks.mapIndexed { index, dto ->
+                val cachedTrack = allTracksCache().find { it.id == dto.id }
+                mapPlaylistTrackDto(dto, cachedTrack).copy(
+                    isFavorite = cachedTrack?.isFavorite ?: (dto.id in favouriteTracks),
+                    coverColor = cachedTrack?.coverColor ?: coverColors[index % coverColors.size]
+                )
+            }
+
+            _playlists.replaceAll { playlist ->
+                if (playlist.id == playlistId) {
+                    playlist.copy(tracks = resolvedTracks.toMutableList())
+                } else {
+                    playlist
+                }
+            }
+
+            resolvedTracks
+        } catch (e: Exception) {
+            Log.e(TAG, "Error loading playlist tracks", e)
+            emptyList()
+        }
+    }
 
     /**
      * Создать новый плейлист локально (без сервера)
@@ -301,5 +358,10 @@ object MusicRepository {
         } else {
             favoritesRepository.deleteFavouriteTrack(trackId).map { false }
         }
+    }
+
+    private fun allTracksCache(): List<Track> {
+        val playlistTracks = _playlists.flatMap { it.tracks }
+        return (playlistTracks + _albums.flatMap { it.tracks }).distinctBy { it.id }
     }
 }

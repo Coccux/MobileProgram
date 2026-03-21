@@ -4,13 +4,23 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
+import org.gradle.api.GradleException
+
 // Get version from parent project (set by version.gradle.kts)
 val appVersionName: String = rootProject.extra.get("versionName") as String
 val appVersionCode: Int = rootProject.extra.get("versionCode") as Int
-val devBaseUrl = providers.gradleProperty("russifyDevBaseUrl")
-    .orElse(providers.environmentVariable("RUSSIFY_DEV_BASE_URL"))
-    .orElse("http://192.168.0.49:8080")
-    .get()
+
+fun requiredConfig(propertyName: String, envName: String): String =
+    providers.gradleProperty(propertyName)
+        .orElse(providers.environmentVariable(envName))
+        .orNull
+        ?.takeIf { it.isNotBlank() }
+        ?: throw GradleException("Missing required configuration: set $propertyName or $envName")
+
+val devBaseUrl = requiredConfig("russifyDevBaseUrl", "RUSSIFY_DEV_BASE_URL")
+val prodBaseUrl = requiredConfig("russifyProdBaseUrl", "RUSSIFY_PROD_BASE_URL")
+val devStorageBaseUrl = requiredConfig("russifyDevStorageBaseUrl", "RUSSIFY_DEV_STORAGE_BASE_URL")
+val prodStorageBaseUrl = requiredConfig("russifyProdStorageBaseUrl", "RUSSIFY_PROD_STORAGE_BASE_URL")
 
 android {
     namespace = "com.example.Russify"
@@ -47,6 +57,7 @@ android {
 
             // BuildConfig для dev окружения
             buildConfigField("String", "BASE_URL", "\"$devBaseUrl\"")
+            buildConfigField("String", "STORAGE_BASE_URL", "\"$devStorageBaseUrl\"")
             buildConfigField("String", "ENVIRONMENT", "\"development\"")
             buildConfigField("boolean", "ENABLE_LOGGING", "true")
 
@@ -56,8 +67,8 @@ android {
         create("prod") {
             dimension = "environment"
 
-            // BuildConfig для prod окружения - ЗАМЕНИТЕ на ваш production URL
-            buildConfigField("String", "BASE_URL", "\"https://api.russify.com\"")
+            buildConfigField("String", "BASE_URL", "\"$prodBaseUrl\"")
+            buildConfigField("String", "STORAGE_BASE_URL", "\"$prodStorageBaseUrl\"")
             buildConfigField("String", "ENVIRONMENT", "\"production\"")
             buildConfigField("boolean", "ENABLE_LOGGING", "false")
 
@@ -146,6 +157,7 @@ dependencies {
 
     // --- СЕРИАЛИЗАЦИЯ (Для парсинга JSON) ---
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
+    implementation("org.slf4j:slf4j-nop:1.7.36")
 
     // --- MEDIA3 / EXOPLAYER (Для ВОСПРОИЗВЕДЕНИЯ музыки) ---
     val media3Version = "1.2.1"

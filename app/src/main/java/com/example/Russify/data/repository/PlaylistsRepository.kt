@@ -9,6 +9,8 @@ import com.example.Russify.data.network.PlaylistResponse
 import com.example.Russify.data.network.PlaylistWithTracks
 import io.ktor.client.call.*
 import io.ktor.client.request.*
+import io.ktor.client.request.forms.MultiPartFormDataContent
+import io.ktor.client.request.forms.formData
 import io.ktor.http.*
 
 /**
@@ -71,17 +73,15 @@ class PlaylistsRepository {
         isSystem: Boolean = false
     ): Result<PlaylistResponse> {
         return ApiErrorHandler.safeApiCall {
-            // TODO: Реализовать загрузку coverFile через multipart/form-data
-            // Для этого нужно использовать submitFormWithBinaryData или FormBuilder
-
-            // Пока создаем плейлист без обложки через JSON
-            // Backend должен принять это и установить userId из токена
             client.post("$baseUrl/playlists") {
-                contentType(ContentType.Application.Json)
-                setBody(mapOf(
-                    "name" to name,
-                    "isSystem" to isSystem
-                ))
+                setBody(
+                    MultiPartFormDataContent(
+                        formData {
+                            append("name", name)
+                            append("isSystem", isSystem.toString())
+                        }
+                    )
+                )
             }.body()
         }
     }
@@ -103,15 +103,15 @@ class PlaylistsRepository {
         isSystem: Boolean? = null
     ): Result<PlaylistDto> {
         return ApiErrorHandler.safeApiCall {
-            // TODO: Реализовать загрузку coverFile через multipart/form-data
-
-            val updates = mutableMapOf<String, Any>()
-            name?.let { updates["name"] = it }
-            isSystem?.let { updates["isSystem"] = it }
-
             client.put("$baseUrl/playlists/$id") {
-                contentType(ContentType.Application.Json)
-                setBody(updates)
+                setBody(
+                    MultiPartFormDataContent(
+                        formData {
+                            name?.let { append("name", it) }
+                            isSystem?.let { append("isSystem", it.toString()) }
+                        }
+                    )
+                )
             }.body()
         }
     }

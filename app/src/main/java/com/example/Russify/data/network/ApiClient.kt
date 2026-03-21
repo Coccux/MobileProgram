@@ -13,10 +13,9 @@ import kotlinx.serialization.json.Json
 import com.example.Russify.BuildConfig
 
 object ApiClient {
-    // URL автоматически берется из BuildConfig в зависимости от flavor (dev/prod)
-    // dev: http://192.168.0.49:8080/api (локальная сеть Wi-Fi)
-    // prod: https://api.russify.com/api (production)
+    // Backend base URL автоматически берется из BuildConfig в зависимости от flavor.
     val BASE_URL = BuildConfig.BASE_URL + "/api"
+    val STORAGE_BASE_URL = BuildConfig.STORAGE_BASE_URL.trimEnd('/')
 
     var authToken: String? = null // Сюда сохраним токен после логина
 
